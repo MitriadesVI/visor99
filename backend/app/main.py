@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -8,20 +7,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from backend.app.config import APP_SETTINGS
-from backend.app.routers import candidate, competitive, datasets, filters, municipal
-from backend.app.services.dataset_loader import DatasetStore
+from backend.app.routers import candidate_new, competitive_new, datasets_new, filters_new, municipal_new
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    store = DatasetStore()
-    store.resolve(APP_SETTINGS.default_dataset_path)  # verify default exists
-    app.state.dataset_store = store
-    yield
-
-
-app = FastAPI(title="Visor 99 API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Visor 99 API", version="0.2.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -30,11 +19,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(datasets.router)
-app.include_router(filters.router)
-app.include_router(candidate.router)
-app.include_router(competitive.router)
-app.include_router(municipal.router)
+app.include_router(datasets_new.router)
+app.include_router(filters_new.router)
+app.include_router(candidate_new.router)
+app.include_router(competitive_new.router)
+app.include_router(municipal_new.router)
 
 
 @app.get("/api/health")

@@ -6,19 +6,19 @@ RUN npm ci
 COPY frontend/ ./
 RUN npm run build
 
-# ── Stage 2: Python backend + frontend estático ──
+# ── Stage 2: Python backend + precomputed JSONs + frontend estático ──
 FROM python:3.11-slim
 WORKDIR /app
 
-# Instalar dependencias Python
+# Instalar dependencias Python (solo fastapi + uvicorn)
 COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar backend
 COPY backend/ ./backend/
 
-# Copiar datos
-COPY datos/ ./datos/
+# Copiar JSONs precomputados
+COPY precomputed/ ./precomputed/
 
 # Copiar frontend compilado
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
