@@ -25,6 +25,7 @@ COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 
 # Puerto (Railway asigna $PORT)
 ENV PORT=8000
+ENV MALLOC_ARENA_MAX=2
 EXPOSE 8000
 
 # Arrancar FastAPI

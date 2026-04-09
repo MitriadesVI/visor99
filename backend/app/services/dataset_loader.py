@@ -166,7 +166,12 @@ def load_dataset_bundle(
     ]
 
     if spec.path.suffix.lower() == ".parquet":
-        raw_frame = pd.read_parquet(spec.path, columns=raw_columns or None)
+        raw_frame = pd.read_parquet(
+            spec.path,
+            columns=raw_columns or None,
+            engine="pyarrow",
+            dtype_backend="pyarrow",
+        )
     else:
         dtype_map = {
             raw_column: (
@@ -186,6 +191,7 @@ def load_dataset_bundle(
 
     normalized = apply_column_mapping(raw_frame, mapping, APP_SETTINGS.numeric_columns)
     enriched = enrich_dataset(normalized, spec)
+    enriched = compact_string_columns(enriched)
     profile = build_dataset_profile(enriched)
 
     return DatasetBundle(
@@ -252,6 +258,14 @@ def build_dataset_profile(frame: pd.DataFrame) -> DatasetProfile:
         available_departments=tuple(departments),
         column_names=tuple(frame.columns),
     )
+
+
+def compact_string_columns(frame: pd.DataFrame) -> pd.DataFrame:
+    compacted = frame.copy()
+    string_columns = compacted.select_dtypes(include=["string", "object"]).columns
+    for column_name in string_columns:
+        compacted[column_name] = compacted[column_name].astype("category")
+    return compacted
 
 
 class DatasetStore:
