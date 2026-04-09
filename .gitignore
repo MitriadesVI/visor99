@@ -5,3 +5,9 @@ __pycache__/
 frontend/dist/
 frontend/node_modules/
 .env
+datos/elecciones 2026/nacional.csv
+datos/elecciones 2026/antioquia.csv
+datos/elecciones 2026/atlantico.csv
+datos/elecciones 2026/bogota.csv
+datos/elecciones 2026/vallle del cauca.csv
+datos/elecciones 2026/cundinamarca.csv
