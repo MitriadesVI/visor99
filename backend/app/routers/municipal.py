@@ -6,6 +6,7 @@ from backend.app.analytics.municipal import build_municipal_comparison
 from backend.app.config import APP_SETTINGS
 from backend.app.models.schemas import MunicipalComparisonResponse
 from backend.app.routers.common import (
+    ANALYTICS_COLUMNS,
     get_dataset_bundle,
     get_scope_frame,
     records_from_frame,
@@ -28,7 +29,7 @@ def municipal_comparison(
     sort_by: str = Query(default="votes", pattern="^(votes|efficiency|coverage)$"),
     limit: int = Query(default=30, ge=5, le=100),
 ) -> MunicipalComparisonResponse:
-    bundle = get_dataset_bundle(request, dataset)
+    bundle = get_dataset_bundle(request, dataset, required_columns=ANALYTICS_COLUMNS)
     scope_frame = get_scope_frame(bundle, contest, department, municipality, party)
     candidate_party = resolve_candidate_party(scope_frame, candidate)
     if candidate_party is None:

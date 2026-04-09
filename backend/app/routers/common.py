@@ -7,14 +7,48 @@ from backend.app.analytics.candidate import apply_scope_filters, candidate_vote_
 from backend.app.config import APP_SETTINGS
 from backend.app.services.dataset_loader import DatasetBundle, DatasetStore
 
+FILTER_COLUMNS = frozenset(
+    {
+        "contest_name",
+        "department_name",
+        "municipality_name",
+        "party_name",
+        "candidate_code",
+        "candidate_name",
+        "votes",
+    }
+)
+
+ANALYTICS_COLUMNS = frozenset(
+    {
+        "department_code",
+        "department_name",
+        "municipality_code",
+        "municipality_name",
+        "zone_code",
+        "polling_place_code",
+        "polling_place_name",
+        "table_code",
+        "contest_name",
+        "party_name",
+        "candidate_code",
+        "candidate_name",
+        "votes",
+    }
+)
+
 
 def get_dataset_store(request: Request) -> DatasetStore:
     return request.app.state.dataset_store
 
 
-def get_dataset_bundle(request: Request, dataset: str | None) -> DatasetBundle:
+def get_dataset_bundle(
+    request: Request,
+    dataset: str | None,
+    required_columns: frozenset[str] | None = None,
+) -> DatasetBundle:
     try:
-        return get_dataset_store(request).get_bundle(dataset)
+        return get_dataset_store(request).get_bundle(dataset, required_columns=required_columns)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 

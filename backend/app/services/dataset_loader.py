@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import csv
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from threading import Lock
 
@@ -52,6 +52,7 @@ class DatasetBundle:
     mapping: ColumnMappingResult
     profile: DatasetProfile
     data: pd.DataFrame
+    loaded_columns: frozenset[str] = field(default_factory=frozenset)
 
 
 def detect_csv_format(path: Path) -> CSVFormat:
@@ -121,25 +122,28 @@ def discover_datasets(data_dir: Path | None = None) -> list[DatasetSpec]:
 def inspect_column_mapping(spec: DatasetSpec) -> tuple[CSVFormat, ColumnMappingResult]:
     if spec.path.suffix.lower() == ".parquet":
         csv_format = CSVFormat(delimiter="parquet", encoding="binary")
-        header_frame = pd.read_parquet(spec.path).head(0)
+        header_columns = pq.ParquetFile(spec.path).schema.names
     else:
         csv_format = detect_csv_format(spec.path)
-        header_frame = pd.read_csv(
+        header_columns = pd.read_csv(
             spec.path,
             sep=csv_format.delimiter,
             encoding=csv_format.encoding,
             nrows=0,
-        )
+        ).columns
 
     mapping = build_column_mapping(
-        raw_columns=header_frame.columns,
+        raw_columns=header_columns,
         column_aliases=APP_SETTINGS.column_aliases,
         required_columns=APP_SETTINGS.required_columns,
     )
     return csv_format, mapping
 
 
-def load_dataset_bundle(spec: DatasetSpec) -> DatasetBundle:
+def load_dataset_bundle(
+    spec: DatasetSpec,
+    required_columns: frozenset[str] | None = None,
+) -> DatasetBundle:
     csv_format, mapping = inspect_column_mapping(spec)
 
     if mapping.conflicts:
@@ -150,18 +154,33 @@ def load_dataset_bundle(spec: DatasetSpec) -> DatasetBundle:
             "Faltan columnas requeridas: " + ", ".join(mapping.missing_required)
         )
 
+    selected_columns = (
+        frozenset(mapping.canonical_to_raw)
+        if required_columns is None
+        else frozenset(required_columns | APP_SETTINGS.required_columns)
+    )
+    raw_columns = [
+        mapping.canonical_to_raw[column_name]
+        for column_name in selected_columns
+        if column_name in mapping.canonical_to_raw
+    ]
+
     if spec.path.suffix.lower() == ".parquet":
-        raw_frame = pd.read_parquet(spec.path)
+        raw_frame = pd.read_parquet(spec.path, columns=raw_columns or None)
     else:
         dtype_map = {
-            raw_column: ("Int64" if canonical_name == "votes" else "string")
-            for raw_column, canonical_name in mapping.raw_to_canonical.items()
+            raw_column: (
+                "Int64" if mapping.raw_to_canonical[raw_column] == "votes" else "string"
+            )
+            for raw_column in raw_columns
+            if raw_column in mapping.raw_to_canonical
         }
         raw_frame = pd.read_csv(
             spec.path,
             sep=csv_format.delimiter,
             encoding=csv_format.encoding,
             dtype=dtype_map,
+            usecols=raw_columns or None,
             low_memory=False,
         )
 
@@ -175,6 +194,7 @@ def load_dataset_bundle(spec: DatasetSpec) -> DatasetBundle:
         mapping=mapping,
         profile=profile,
         data=enriched,
+        loaded_columns=selected_columns,
     )
 
 
@@ -245,19 +265,33 @@ class DatasetStore:
     def list_specs(self) -> list[DatasetSpec]:
         return list(self._specs)
 
-    def warm_default_dataset(self) -> None:
-        self.get_bundle(APP_SETTINGS.default_dataset_path)
-
-    def get_bundle(self, dataset_ref: str | None = None) -> DatasetBundle:
+    def verify_dataset_exists(self, dataset_ref: str | None = None) -> DatasetSpec:
         dataset_key = dataset_ref or APP_SETTINGS.default_dataset_path
         spec = self._by_path.get(dataset_key) or self._by_id.get(dataset_key)
         if spec is None:
             raise KeyError(f"Dataset no encontrado: {dataset_key}")
+        return spec
+
+    def get_bundle(
+        self,
+        dataset_ref: str | None = None,
+        required_columns: frozenset[str] | None = None,
+    ) -> DatasetBundle:
+        spec = self.verify_dataset_exists(dataset_ref)
 
         with self._lock:
             bundle = self._cache.get(spec.display_name)
-            if bundle is None:
-                bundle = load_dataset_bundle(spec)
+            needs_reload = bundle is None
+            if bundle is not None and required_columns is None:
+                needs_reload = bundle.loaded_columns != frozenset(bundle.mapping.canonical_to_raw)
+            if bundle is not None and required_columns is not None:
+                needs_reload = not required_columns.issubset(bundle.loaded_columns)
+
+            if needs_reload:
+                expanded_columns = required_columns
+                if bundle is not None and required_columns is not None:
+                    expanded_columns = frozenset(bundle.loaded_columns | required_columns)
+                bundle = load_dataset_bundle(spec, required_columns=expanded_columns)
                 self._cache[spec.display_name] = bundle
 
         return bundle

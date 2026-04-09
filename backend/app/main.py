@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-import os
-print(f"CWD: {os.getcwd()}", flush=True)
-print(f"Datos exists: {os.path.isdir('datos')}", flush=True)
-print(f"Parquet exists: {os.path.isfile('datos/elecciones 2026/nacional.parquet')}", flush=True)
-
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
+from backend.app.config import APP_SETTINGS
 from backend.app.routers import candidate, competitive, datasets, filters, municipal
 from backend.app.services.dataset_loader import DatasetStore
 
@@ -17,7 +16,10 @@ from backend.app.services.dataset_loader import DatasetStore
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     store = DatasetStore()
-    store.warm_default_dataset()
+    store.verify_dataset_exists(APP_SETTINGS.default_dataset_path)
+    app.state.default_dataset_path = str(
+        (APP_SETTINGS.data_dir / APP_SETTINGS.default_dataset_path).resolve()
+    )
     app.state.dataset_store = store
     yield
 
@@ -38,19 +40,17 @@ app.include_router(competitive.router)
 app.include_router(municipal.router)
 
 
+@app.get("/api/health")
+def api_healthcheck() -> dict[str, str]:
+    return {"status": "ok"}
+
+
 @app.get("/health")
 def healthcheck() -> dict[str, str]:
     return {"status": "ok"}
 
 
-# ── Serve compiled frontend in production ──
-import os
-from pathlib import Path as _Path
-
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
-
-_frontend_dist = _Path(__file__).resolve().parents[2] / "frontend" / "dist"
+_frontend_dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 
 if _frontend_dist.is_dir():
     _assets_dir = _frontend_dist / "assets"

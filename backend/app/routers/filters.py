@@ -4,7 +4,7 @@ from fastapi import APIRouter, Query, Request
 
 from backend.app.analytics.candidate import candidate_vote_options
 from backend.app.models.schemas import FilterOptionsResponse
-from backend.app.routers.common import get_dataset_bundle, records_from_frame
+from backend.app.routers.common import FILTER_COLUMNS, get_dataset_bundle
 
 
 router = APIRouter(prefix="/api", tags=["filters"])
@@ -19,7 +19,7 @@ def get_filters(
     municipality: str | None = Query(default=None),
     party: str | None = Query(default=None),
 ) -> FilterOptionsResponse:
-    bundle = get_dataset_bundle(request, dataset)
+    bundle = get_dataset_bundle(request, dataset, required_columns=FILTER_COLUMNS)
     data = bundle.data
 
     contest_frame = data

@@ -21,6 +21,7 @@ from backend.app.models.schemas import (
     ZoneDrilldownResponse,
 )
 from backend.app.routers.common import (
+    ANALYTICS_COLUMNS,
     get_dataset_bundle,
     get_scope_frame,
     records_from_frame,
@@ -52,7 +53,7 @@ def candidate_summary(
     party: str | None = Query(default=None),
     candidate: str = Query(default=APP_SETTINGS.default_candidate_name),
 ) -> CandidateSummaryResponse:
-    bundle = get_dataset_bundle(request, dataset)
+    bundle = get_dataset_bundle(request, dataset, required_columns=ANALYTICS_COLUMNS)
     scope_frame = get_scope_frame(bundle, contest, department, municipality, party)
 
     candidate_party = resolve_candidate_party(scope_frame, candidate)
@@ -182,7 +183,7 @@ def candidate_drilldown(
     zone_code: str | None = Query(default=None),
     polling_place_code: str | None = Query(default=None),
 ) -> ZoneDrilldownResponse | PollingPlaceDrilldownResponse | TableDrilldownResponse:
-    bundle = get_dataset_bundle(request, dataset)
+    bundle = get_dataset_bundle(request, dataset, required_columns=ANALYTICS_COLUMNS)
     scope_frame = get_scope_frame(bundle, contest, department, municipality, party)
 
     candidate_party = resolve_candidate_party(scope_frame, candidate)

@@ -6,6 +6,7 @@ from backend.app.analytics.competitive import build_competitive_overview
 from backend.app.config import APP_SETTINGS
 from backend.app.models.schemas import CompetitiveResponse
 from backend.app.routers.common import (
+    ANALYTICS_COLUMNS,
     get_dataset_bundle,
     get_scope_frame,
     records_from_frame,
@@ -27,7 +28,7 @@ def competitive_rivals(
     candidate: str = Query(default=APP_SETTINGS.default_candidate_name),
     top_n: int = Query(default=15, ge=1, le=20),
 ) -> CompetitiveResponse:
-    bundle = get_dataset_bundle(request, dataset)
+    bundle = get_dataset_bundle(request, dataset, required_columns=ANALYTICS_COLUMNS)
     scope_frame = get_scope_frame(bundle, contest, department, municipality, party)
     candidate_party = resolve_candidate_party(scope_frame, candidate)
     if candidate_party is None:

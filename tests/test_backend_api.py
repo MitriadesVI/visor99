@@ -118,13 +118,17 @@ class FakeStore:
             data=frame,
         )
 
-    def warm_default_dataset(self) -> None:
-        return None
+    def verify_dataset_exists(self, dataset_ref: str | None = None) -> DatasetSpec:
+        return self.bundle.spec
 
     def list_specs(self) -> list[DatasetSpec]:
         return [self.bundle.spec]
 
-    def get_bundle(self, dataset_ref: str | None = None) -> DatasetBundle:
+    def get_bundle(
+        self,
+        dataset_ref: str | None = None,
+        required_columns: frozenset[str] | None = None,
+    ) -> DatasetBundle:
         return self.bundle
 
 
@@ -132,6 +136,7 @@ def test_api_endpoints_return_expected_shapes(monkeypatch) -> None:
     monkeypatch.setattr("backend.app.main.DatasetStore", FakeStore)
 
     with TestClient(app) as client:
+        health_response = client.get("/api/health")
         datasets_response = client.get("/api/datasets")
         filters_response = client.get("/api/filters")
         candidate_response = client.get(
@@ -176,6 +181,9 @@ def test_api_endpoints_return_expected_shapes(monkeypatch) -> None:
             "/api/municipal/comparison",
             params={"candidate": "ANA PEREZ", "contest": "SENADO"},
         )
+
+    assert health_response.status_code == 200
+    assert health_response.json() == {"status": "ok"}
 
     assert datasets_response.status_code == 200
     assert datasets_response.json()[0]["path"] == "demo.parquet"
