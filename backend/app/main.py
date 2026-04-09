@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import os
+print(f"CWD: {os.getcwd()}", flush=True)
+print(f"Datos exists: {os.path.isdir('datos')}", flush=True)
+print(f"Parquet exists: {os.path.isfile('datos/elecciones 2026/nacional.parquet')}", flush=True)
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
