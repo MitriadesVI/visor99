@@ -16,10 +16,7 @@ from backend.app.services.dataset_loader import DatasetStore
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     store = DatasetStore()
-    store.verify_dataset_exists(APP_SETTINGS.default_dataset_path)
-    app.state.default_dataset_path = str(
-        (APP_SETTINGS.data_dir / APP_SETTINGS.default_dataset_path).resolve()
-    )
+    store.resolve(APP_SETTINGS.default_dataset_path)  # verify default exists
     app.state.dataset_store = store
     yield
 

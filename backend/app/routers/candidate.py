@@ -21,11 +21,10 @@ from backend.app.models.schemas import (
     ZoneDrilldownResponse,
 )
 from backend.app.routers.common import (
-    ANALYTICS_COLUMNS,
-    get_dataset_bundle,
     get_scope_frame,
     records_from_frame,
     resolve_candidate_party,
+    resolve_dataset,
 )
 
 
@@ -53,8 +52,8 @@ def candidate_summary(
     party: str | None = Query(default=None),
     candidate: str = Query(default=APP_SETTINGS.default_candidate_name),
 ) -> CandidateSummaryResponse:
-    bundle = get_dataset_bundle(request, dataset, required_columns=ANALYTICS_COLUMNS)
-    scope_frame = get_scope_frame(bundle, contest, department, municipality, party)
+    spec, source_sql = resolve_dataset(request, dataset)
+    scope_frame = get_scope_frame(source_sql, contest, department, municipality, party)
 
     candidate_party = resolve_candidate_party(scope_frame, candidate)
     if candidate_party is None:
@@ -154,7 +153,7 @@ def candidate_summary(
             "contest": contest or APP_SETTINGS.default_contest_name,
         },
         scope={
-            "dataset": bundle.spec.display_name,
+            "dataset": spec.display_name,
             "department": department if department and department != "Todos" else None,
             "municipality": municipality if municipality and municipality != "Todos" else None,
             "party": party if party and party != "Todos" else None,
@@ -183,8 +182,8 @@ def candidate_drilldown(
     zone_code: str | None = Query(default=None),
     polling_place_code: str | None = Query(default=None),
 ) -> ZoneDrilldownResponse | PollingPlaceDrilldownResponse | TableDrilldownResponse:
-    bundle = get_dataset_bundle(request, dataset, required_columns=ANALYTICS_COLUMNS)
-    scope_frame = get_scope_frame(bundle, contest, department, municipality, party)
+    spec, source_sql = resolve_dataset(request, dataset)
+    scope_frame = get_scope_frame(source_sql, contest, department, municipality, party)
 
     candidate_party = resolve_candidate_party(scope_frame, candidate)
     if candidate_party is None:
